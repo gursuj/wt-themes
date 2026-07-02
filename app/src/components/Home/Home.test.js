@@ -1,12 +1,19 @@
 import React from 'react';
-import {render, fireEvent} from '@testing-library/react';
+import {render, fireEvent, act} from '@testing-library/react';
 import '@testing-library/jest-dom/extend-expect';
 
 import {returnInitialTheme, shortcuts} from './homeMethods';
-import {getRandomColour, homeReducer} from './homeState';
+import {getRandomColour, homeReducer, initialState} from './homeState';
 import Home from './Home';
 import customColourSchemes from '../../custom-colour-schemes.json';
 import credits from '../../credits.json';
+
+beforeEach(() => {
+  Object.defineProperty(window.navigator, 'clipboard', {
+    value: {writeText: jest.fn().mockResolvedValue(undefined)},
+    configurable: true,
+  });
+});
 
 // theres 3 darks themes and 2 light themes
 const schemes = [
@@ -302,5 +309,174 @@ it('credits should have valid structure', () => {
       expect(typeof source.name === 'string').toBe(true);
       expect(typeof source.link === 'string').toBe(true);
     });
+  });
+});
+
+describe('homeReducer', () => {
+  it('LOAD without an initialTheme defaults to the first dark theme', () => {
+    const newState = homeReducer(
+      {...initialState, themeShade: 'DARK'},
+      {type: 'LOAD', themes: schemes}
+    );
+    expect(newState.filteredThemes.map((t) => t.name)).toEqual([
+      'Duotone Dark',
+      'Galaxy',
+      'Ubuntu',
+    ]);
+    expect(newState.activeTheme).toBe('Duotone Dark');
+  });
+
+  it('LOAD with a matching initialTheme selects it and its shade', () => {
+    const newState = homeReducer(initialState, {
+      type: 'LOAD',
+      themes: schemes,
+      initialTheme: 'Galaxy',
+    });
+    expect(newState.activeTheme).toBe('Galaxy');
+    expect(newState.themeShade).toBe('DARK');
+    expect(newState.backgroundColour).toBe('#1d2837');
+  });
+
+  it('LOAD with an unmatched initialTheme leaves the filtered list untouched', () => {
+    const newState = homeReducer(initialState, {
+      type: 'LOAD',
+      themes: schemes,
+      initialTheme: 'Not A Real Theme',
+    });
+    expect(newState.filteredThemes).toEqual([]);
+    expect(newState.activeTheme).toBe('');
+  });
+
+  it('SET updates the active theme and background', () => {
+    const state = {...initialState, themes: schemes};
+    const newState = homeReducer(state, {type: 'SET', theme: 'Ubuntu'});
+    expect(newState.activeTheme).toBe('Ubuntu');
+    expect(newState.backgroundColour).toBe('#300a24');
+  });
+
+  it('PREV wraps to the last theme and NEXT wraps to the first', () => {
+    const darkThemes = schemes.filter((theme) => theme.meta.isDark);
+    const state = {
+      ...initialState,
+      themes: schemes,
+      filteredThemes: darkThemes,
+      activeTheme: darkThemes[0].name,
+    };
+    const prevState = homeReducer(state, {type: 'PREV'});
+    expect(prevState.activeTheme).toBe(darkThemes[darkThemes.length - 1].name);
+
+    const lastState = {
+      ...state,
+      activeTheme: darkThemes[darkThemes.length - 1].name,
+    };
+    const nextState = homeReducer(lastState, {type: 'NEXT'});
+    expect(nextState.activeTheme).toBe(darkThemes[0].name);
+
+    const midState = {...state, activeTheme: darkThemes[1].name};
+    const midNext = homeReducer(midState, {type: 'NEXT'});
+    expect(midNext.activeTheme).toBe(darkThemes[2].name);
+    const midPrev = homeReducer(midState, {type: 'PREV'});
+    expect(midPrev.activeTheme).toBe(darkThemes[0].name);
+  });
+
+  it('SHADE swaps the filtered theme list and picks its first theme', () => {
+    const state = {...initialState, themes: schemes, themeShade: 'DARK'};
+    const lightState = homeReducer(state, {type: 'SHADE', payload: 'LIGHT'});
+    expect(lightState.filteredThemes.map((t) => t.name)).toEqual([
+      '3024 Day',
+      'Man Page',
+    ]);
+    expect(lightState.activeTheme).toBe('3024 Day');
+    expect(lightState.backgroundColour).toBe('#f7f7f7');
+
+    const darkState = homeReducer(lightState, {type: 'SHADE', payload: 'DARK'});
+    expect(darkState.filteredThemes.map((t) => t.name)).toEqual([
+      'Duotone Dark',
+      'Galaxy',
+      'Ubuntu',
+    ]);
+    expect(darkState.activeTheme).toBe('Duotone Dark');
+  });
+
+  it('PREVIEW sets the preview type', () => {
+    const newState = homeReducer(initialState, {
+      type: 'PREVIEW',
+      payload: 'colour',
+    });
+    expect(newState.previewType).toBe('colour');
+  });
+
+  it('show sets an active message and hide clears it', () => {
+    const shown = homeReducer(initialState, {
+      type: 'show',
+      title: 'Copied!',
+      message: 'Theme copied',
+    });
+    expect(shown.message).toEqual({
+      title: 'Copied!',
+      message: 'Theme copied',
+      isActive: true,
+    });
+    const hidden = homeReducer(shown, {type: 'hide'});
+    expect(hidden.message.isActive).toBe(false);
+  });
+
+  it('SIZE updates isSmallScreenSize', () => {
+    const newState = homeReducer(initialState, {
+      type: 'SIZE',
+      isSmallScreenSize: true,
+    });
+    expect(newState.isSmallScreenSize).toBe(true);
+  });
+});
+
+describe('Home component', () => {
+  it('renders the default dark theme with the toolbar and theme controls', () => {
+    const {getByText, getByTestId, getAllByTestId} = render(
+      <Home themes={schemes} />
+    );
+    expect(getByText('Windows Terminal Themes')).toBeInTheDocument();
+    expect(getByTestId('consoletest')).toBeInTheDocument();
+    expect(getAllByTestId('theme-option').length).toBe(3);
+    expect(getByTestId('randomButton')).toBeInTheDocument();
+    expect(getByTestId('copyButton')).toBeInTheDocument();
+    expect(getByTestId('shareButton')).toBeInTheDocument();
+  });
+
+  it('shows the mobile toggles layout on small screens', () => {
+    window.innerWidth = 500;
+    const {getByTestId} = render(<Home themes={schemes} />);
+    expect(getByTestId('toggle-label-LIGHT')).toBeInTheDocument();
+    window.innerWidth = 1024;
+  });
+
+  it('picks a random theme within the filtered list when clicked', () => {
+    const {getByTestId} = render(<Home themes={schemes} />);
+    fireEvent.click(getByTestId('randomButton'));
+    expect(getByTestId('theme-list').value.length).toBeGreaterThan(0);
+  });
+
+  it('copies the theme and shows a toast on copy', async () => {
+    const {getByTestId, getByText} = render(<Home themes={schemes} />);
+    await act(async () => {
+      fireEvent.click(getByTestId('copyButton'));
+    });
+    expect(window.navigator.clipboard.writeText).toHaveBeenCalled();
+    expect(
+      getByText('Duotone Dark theme added to your clipboard')
+    ).toBeInTheDocument();
+  });
+
+  it('shares the theme link and shows a toast on share', async () => {
+    const {getByTestId, getByText} = render(<Home themes={schemes} />);
+    await act(async () => {
+      fireEvent.click(getByTestId('shareButton'));
+    });
+    expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining('theme=Duotone')
+    );
+    expect(
+      getByText('Duotone Dark link added your clipboard')
+    ).toBeInTheDocument();
   });
 });
