@@ -65,6 +65,10 @@ const setcolours = (type: shadeType): void => {
       root.style.setProperty(key, val);
     }
   );
+  // tells the browser (and extensions like Dark Reader that check for it)
+  // that the page already has a matching native colour scheme, so they
+  // don't try to detect/force one of their own
+  root.style.setProperty('color-scheme', type === 'LIGHT' ? 'light' : 'dark');
 };
 
 export default setcolours;
