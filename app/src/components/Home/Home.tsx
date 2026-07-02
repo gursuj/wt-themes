@@ -8,7 +8,7 @@ import {
 } from './homeMethods';
 import {homeReducer, initialState} from 'components/Home/homeState';
 import {themeType} from 'types';
-import {Copy, Logo, Share} from 'Icons';
+import {Copy, Logo, Share, Shuffle} from 'Icons';
 import Toggles from 'components/Toggle/Toggles';
 import ColourTest from 'components/ColourTest/ColourTest';
 import ConsoleTest from 'components/ConsoleTest/ConsoleTest';
@@ -142,6 +142,14 @@ const Home: React.FC<HomeProps> = (props) => {
             themeselectRef={themeselectRef}
           />
           <div className={content.buttons}>
+            <button
+              data-testid="randomButton"
+              className={content.button}
+              onClick={() => dispatch({type: 'RANDOM'})}
+            >
+              <Shuffle className={content.icon} colour="#ededed" />
+              Random theme
+            </button>
             <button
               data-testid="copyButton"
               className={`${content.button} ${content.primary}`}

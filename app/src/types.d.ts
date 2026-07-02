@@ -122,6 +122,10 @@ type setPrevType = {
   type: 'PREV';
 };
 
+type setRandomType = {
+  type: 'RANDOM';
+};
+
 type messageType =
   | {
       type: 'show';
@@ -140,6 +144,7 @@ export type actionTypes =
   | setPreviewType
   | setNextType
   | setPrevType
+  | setRandomType
   | messageType;
 
 export type previewType = 'console' | 'colour';

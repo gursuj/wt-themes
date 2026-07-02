@@ -2,8 +2,8 @@ import React from 'react';
 import {render, fireEvent} from '@testing-library/react';
 import '@testing-library/jest-dom/extend-expect';
 
-import {returnInitialTheme} from './homeMethods';
-import {getRandomColour} from './homeState';
+import {returnInitialTheme, shortcuts} from './homeMethods';
+import {getRandomColour, homeReducer} from './homeState';
 import Home from './Home';
 import customColourSchemes from '../../custom-colour-schemes.json';
 import credits from '../../credits.json';
@@ -203,6 +203,38 @@ it('should return theme name from search params', () => {
   );
   expect(returnInitialTheme('?wrong=synthwave-everything')).toBe(null);
   expect(returnInitialTheme('')).toBe(null);
+});
+
+it('should select a theme from the filtered list on RANDOM action', () => {
+  const darkThemes = schemes.filter((theme) => theme.meta.isDark);
+  const state = {
+    themes: schemes,
+    filteredThemes: darkThemes,
+    activeTheme: darkThemes[0].name,
+    backgroundColour: darkThemes[0].background,
+  };
+  const randomSpy = jest.spyOn(Math, 'random');
+
+  randomSpy.mockReturnValue(0);
+  let newState = homeReducer(state, {type: 'RANDOM'});
+  expect(newState.activeTheme).toBe(darkThemes[0].name);
+  expect(newState.backgroundColour).toBe(darkThemes[0].background);
+
+  randomSpy.mockReturnValue(0.99);
+  const lastTheme = darkThemes[darkThemes.length - 1];
+  newState = homeReducer(state, {type: 'RANDOM'});
+  expect(newState.activeTheme).toBe(lastTheme.name);
+  expect(newState.backgroundColour).toBe(lastTheme.background);
+
+  randomSpy.mockRestore();
+});
+
+it('should dispatch a RANDOM action when the R key shortcut is pressed', () => {
+  const dispatch = jest.fn();
+  const themeselectRef = {current: null};
+  const handleShortcut = shortcuts(dispatch, themeselectRef);
+  handleShortcut({code: 'KeyR'});
+  expect(dispatch).toHaveBeenCalledWith({type: 'RANDOM'});
 });
 
 xit('should tab use keyboard to navigate', () => {

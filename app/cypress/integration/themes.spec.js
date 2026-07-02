@@ -141,6 +141,15 @@ describe('Windows Terminal Themes - big screen', function () {
       cy.findByTestId('shareButton').should('be.visible');
     });
   });
+  it('should show a random theme from the filtered list when clicking random', function () {
+    cy.get('@darkThemes').then((themes) => {
+      const darkThemeNames = themes.map((theme) => theme.name);
+      cy.findByTestId('randomButton').click();
+      cy.findByLabelText('Select theme').should(($select) => {
+        expect(darkThemeNames).to.include($select.val());
+      });
+    });
+  });
   it('should default to light theme in param for sharing', function () {
     cy.get('@lightThemes').then((themes) => {
       const currentTheme = themes[Math.floor(Math.random() * themes.length)];
@@ -164,6 +173,7 @@ describe('Windows Terminal Themes - big screen', function () {
       cy.findByTestId('toggle-label-DARK').should('be.visible');
       cy.findByTestId('toggle-label-console').should('be.visible');
       cy.findByTestId('toggle-label-colour').should('be.visible');
+      cy.findByTestId('randomButton').should('be.visible');
       cy.findByTestId('copyButton').should('be.visible');
       cy.findByTestId('shareButton').should('be.visible');
     };
@@ -401,9 +411,21 @@ describe('Keyboard navigation', function () {
       );
       cy.get('body').type('DDDDdDDDDDDdD');
       cy.findByLabelText('Select theme').should('have.value', themes[11].name);
-      // type anything else, shouldn't change theme
-      cy.get('body').type("qwertyuiopsfghkjlzxcvbnm,./;'123456778890-=");
+      // type anything else, shouldn't change theme (excludes 'r', now used for RANDOM)
+      cy.get('body').type("qwetyuiopsfghkjlzxcvbnm,./;'123456778890-=");
       cy.findByLabelText('Select theme').should('have.value', themes[11].name);
+    });
+  });
+  it('should select a random theme with keyboard [R]', function () {
+    cy.viewport(1024, 780);
+    cy.visit('/themes');
+    cy.findByText('Loading...').should('not.exist');
+    cy.get('@darkThemes').then((themes) => {
+      const darkThemeNames = themes.map((theme) => theme.name);
+      cy.get('body').type('r');
+      cy.findByLabelText('Select theme').should(($select) => {
+        expect(darkThemeNames).to.include($select.val());
+      });
     });
   });
   it('should show credits, if any', function () {

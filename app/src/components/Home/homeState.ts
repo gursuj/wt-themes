@@ -155,6 +155,15 @@ export const homeReducer = (
           draftState.backgroundColour = theme.background;
         }
         break;
+      case 'RANDOM': {
+        const randomIndex = Math.floor(
+          Math.random() * state.filteredThemes.length
+        );
+        const theme = state.filteredThemes[randomIndex];
+        draftState.activeTheme = theme.name;
+        draftState.backgroundColour = theme.background;
+        break;
+      }
       case 'SIZE':
         draftState.isSmallScreenSize = action.isSmallScreenSize;
         break;

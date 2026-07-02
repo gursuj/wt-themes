@@ -58,6 +58,12 @@ export const shortcuts =
         type: 'NEXT',
       });
     }
+    if (e.code === 'KeyR') {
+      stopSelectDetection(e, themeselectRef);
+      dispatch({
+        type: 'RANDOM',
+      });
+    }
   };
 
 export const sampleColours = (theme: themeType | undefined): string[] => {
